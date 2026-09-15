@@ -36,7 +36,7 @@ class Document < ApplicationRecord
     begin
       reader = PDF::Reader.new(path)
       attributes = {
-        title: reader.info[:Title].presence || File.basename(path, ".pdf"),
+        title: reader.info[:Title].presence&.dup&.force_encoding("UTF-8")&.scrub || File.basename(path, ".pdf"),
         source_path: path,
         digest: digest,
         metadata: metadata_from(reader.info),
@@ -130,7 +130,9 @@ class Document < ApplicationRecord
 
   private_class_method def self.metadata_from(info)
     METADATA_KEYS.each_with_object({}) do |key, metadata|
-      metadata[key] = info[key] unless info[key].nil?
+      value = info[key]
+      next if value.nil?
+      metadata[key] = value.is_a?(String) ? value.dup.force_encoding("UTF-8").scrub : value
     end
   end
 
