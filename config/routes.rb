@@ -5,10 +5,11 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  resources :documents, only: [ :create, :index ] do
+  resources :documents, only: [ :create, :index, :show ] do
     resources :sections, only: :index, module: :documents
   end
   resources :chunks, only: [ :index ]
+  resources :images, only: [ :index, :show ]
 
   mount ->(env) { Rails.application.config.mcp_transport.call(env) }, at: "/mcp", as: :mcp
 

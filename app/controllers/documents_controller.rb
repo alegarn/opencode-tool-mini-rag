@@ -6,29 +6,16 @@ class DocumentsController < ApplicationController
       return
     end
 
+    existing_id = Document.where(source_path: path).pick(:id)
     document = Document.ingest!(path)
-    render json: toc(document), status: :created
+    render json: document.toc, status: existing_id == document.id ? :ok : :created
   end
 
   def index
-    render json: tocs
+    render json: Document.toc
   end
 
-  private
-
-  def tocs
-    rows = Chunk.joins(:document)
-                .select("documents.id, documents.title, chunks.section_path, count(*) AS chunks")
-                .group("documents.id", "documents.title", "chunks.section_path")
-                .order("documents.title, chunks.section_path")
-    rows.each_with_object([]) do |row, documents|
-      documents << { id: row.id, document: row.title, sections: [] } if documents.last&.fetch(:id) != row.id
-      documents.last[:sections] << { path: row.section_path, chunks: row.chunks }
-    end
-  end
-
-  def toc(document)
-    sections = document.chunks.group(:section_path).count.map { |path, count| { path:, chunks: count } }
-    { id: document.id, title: document.title, sections: }
+  def show
+    render json: Document.find(params[:id]).toc
   end
 end

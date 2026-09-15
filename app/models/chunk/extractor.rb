@@ -1,12 +1,11 @@
 class Chunk::Extractor
-  HEADING = /\A(\d+(?:\.\d+)*)?\s*[A-Z][A-Za-z ,\-]{2,60}\z/
   SIZE = 1000
   OVERLAP = 150
 
   def initialize(document, path)
     @document = document
     @path = path
-    @stack = []
+    @tracker = HeadingTracker.new(document.title)
     @rows = nil
   end
 
@@ -25,29 +24,8 @@ class Chunk::Extractor
   private
 
   def process_line(line)
-    stripped = line.strip
-    if heading?(stripped)
-      push_heading(stripped)
-    elsif stripped.empty?
-      @buffer << ""
-    else
-      @buffer << stripped
-    end
-  end
-
-  def heading?(line)
-    !line.empty? && !line.end_with?(".") && line.split.length <= 8 && line =~ HEADING
-  end
-
-  def push_heading(line)
-    number = line[/\A\d+(?:\.\d+)*/]
-    if number
-      depth = number.split(".").length
-      @stack = @stack.first(depth - 1)
-      @stack << line
-    else
-      @stack = [ line ]
-    end
+    text = @tracker.scan(line)
+    @buffer << text if text
   end
 
   def page_rows(text, page)
@@ -65,6 +43,6 @@ class Chunk::Extractor
   end
 
   def section_path
-    ([ @document.title ] + @stack).join(" / ")
+    @tracker.section_path
   end
 end

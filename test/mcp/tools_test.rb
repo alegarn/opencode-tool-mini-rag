@@ -36,6 +36,15 @@ class ToolsTest < ActiveSupport::TestCase
     assert_equal 1, k8s["sections"].first["chunks"]
   end
 
+  test "list_toc carries a metadata summary per document" do
+    payload = JSON.parse(ListTocTool.call.content.first[:text])
+
+    payload.each do |entry|
+      document = Document.find(entry["id"])
+      assert_equal({ "title" => document.title, "author" => nil, "page_count" => nil }, entry["metadata"])
+    end
+  end
+
   test "read_section returns ordered rows" do
     payload = JSON.parse(ReadSectionTool.call(document_id: @k8s.id, section_prefix: "k8s-guide / Deployment").content.first[:text])
 

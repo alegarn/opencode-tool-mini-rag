@@ -3,7 +3,7 @@ Rails.application.config.to_prepare do
     MCP::Server.new(
       name: "pdf-rag",
       version: "0.1.0",
-      tools: [ SearchPdfsTool, ListTocTool, ReadSectionTool ]
+      tools: [ SearchPdfsTool, ListTocTool, ReadSectionTool, FindImagesTool ]
     ),
     stateless: true,
     enable_json_response: true

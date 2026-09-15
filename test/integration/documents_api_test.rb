@@ -22,6 +22,66 @@ class DocumentsApiTest < ActionDispatch::IntegrationTest
     assert response.parsed_body.key?("error")
   end
 
+  test "POST /documents with unchanged file is idempotent" do
+    with_pdf([ [ "Introduction", "lowercase body text here" ] ]) do |path|
+      post documents_path, params: { path: }, as: :json
+      assert_response :created
+      id = response.parsed_body["id"]
+      chunk_rows = Chunk.order(:id).pluck(:id, :updated_at)
+      document_updated_at = Document.find(id).updated_at
+
+      post documents_path, params: { path: }, as: :json
+
+      assert_response :ok
+      assert_equal id, response.parsed_body["id"]
+      assert_equal chunk_rows, Chunk.order(:id).pluck(:id, :updated_at)
+      assert_equal document_updated_at, Document.find(id).updated_at
+    end
+  end
+
+  test "GET /documents/:id returns metadata, toc, and counts" do
+    info = { Title: "Custom Title", Author: "Jane Doe" }
+    with_pdf([ [ "Introduction", "lowercase body text here" ] ], info:) do |path|
+      post documents_path, params: { path: }, as: :json
+      id = response.parsed_body["id"]
+
+      get document_path(id)
+
+      assert_response :ok
+      body = response.parsed_body
+      assert_equal id, body["id"]
+      assert_equal "Custom Title", body["title"]
+      assert_equal({ "Title" => "Custom Title", "Author" => "Jane Doe" }, body["metadata"])
+      assert_equal 1, body["page_count"]
+      assert_equal "1.4", body["pdf_version"]
+      assert_equal 1, body["chunks"]
+      assert_equal 0, body["images"]
+      assert_equal [ [ "Custom Title / Introduction", 1 ] ], body["sections"].map { |section| [ section["path"], section["chunks"] ] }
+    end
+  end
+
+  test "GET /documents/:id with unknown id returns not_found" do
+    get document_path(-1)
+
+    assert_response :not_found
+  end
+
+  test "GET /documents carries a metadata summary per entry" do
+    info = { Title: "Custom Title", Author: "Jane Doe" }
+    with_pdf([ [ "Introduction", "lowercase body text here" ] ], info:) do |path|
+      post documents_path, params: { path: }, as: :json
+      id = response.parsed_body["id"]
+
+      get documents_path
+
+      assert_response :ok
+      entry = response.parsed_body.find { |document| document["id"] == id }
+      assert_equal "Custom Title", entry["document"]
+      assert_equal({ "title" => "Custom Title", "author" => "Jane Doe", "page_count" => 1 }, entry["metadata"])
+      assert entry["sections"].is_a?(Array)
+    end
+  end
+
   test "POST /documents with non-pdf file returns bad_request" do
     Tempfile.create([ "test", ".txt" ]) do |file|
       file.write("not a pdf")
