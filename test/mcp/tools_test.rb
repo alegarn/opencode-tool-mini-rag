@@ -89,4 +89,42 @@ class ToolsTest < ActiveSupport::TestCase
     assert_equal "fr", entry["language"]
     assert_equal "en", payload.find { |document| document["id"] == @k8s.id }["language"]
   end
+
+  test "search_pdfs description carries the TRANSLATE-THEN-SEARCH contract" do
+    description = SearchPdfsTool.description
+
+    assert_includes description, "TRANSLATE-THEN-SEARCH"
+    assert_includes description, "list_toc"
+    assert_includes description, "window sealing tape junction | calfeutrage fenêtre ruban jonction"
+    assert_includes description, "Do not run one search per language"
+    assert description.length < 1200, "descriptions ship in every tools/list — keep them tight"
+  end
+
+  test "find_images description carries the TRANSLATE-THEN-SEARCH contract" do
+    description = FindImagesTool.description
+
+    assert_includes description, "TRANSLATE-THEN-SEARCH"
+    assert_includes description, "list_toc"
+    assert_includes description, "sealing detail junction | détail étanchéité jonction"
+    assert_includes description, "Do not run one search per language"
+    assert description.length < 1200, "descriptions ship in every tools/list — keep them tight"
+  end
+
+  test "search_pdfs translated group reaches the other language in one call" do
+    Chunk.create!(document: @french, page: 2, section_path: "guide-fr / Calfeutrage", content: "calfeutrage des fenêtres avec des rubans étanches")
+
+    alone = JSON.parse(SearchPdfsTool.call(terms: "caulking").content.first[:text])
+    assert_empty alone, "monolingual caulking must not leak into french stems"
+
+    translated = JSON.parse(SearchPdfsTool.call(terms: "caulking|calfeutrage").content.first[:text])
+    assert translated.any? { |row| row["content"].match?(/calfeutr/i) && row["language"] == "fr" }
+  end
+
+  test "search_pdfs terms grammar ANDs words inside a group, ORs across groups" do
+    both = JSON.parse(SearchPdfsTool.call(terms: "kubernetes deployment").content.first[:text])
+    assert both.any? { |row| row["content"].include?("kubernetes") }
+
+    mixed = JSON.parse(SearchPdfsTool.call(terms: "kubernetes pancake").content.first[:text])
+    assert_empty mixed, "flat-OR parsing regression: words from different chunks must not satisfy one group"
+  end
 end
