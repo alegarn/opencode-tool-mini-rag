@@ -92,4 +92,18 @@ class DocumentsApiTest < ActionDispatch::IntegrationTest
     assert_response :bad_request
     assert response.parsed_body.key?("error")
   end
+
+  test "document payloads carry language from detection at ingest" do
+    with_pdf([ [ "Intro", "le guide présente les membranes de toiture et la pose est une étape du bâtiment" ] ]) do |path|
+      post documents_path, params: { path: }, as: :json
+      assert_equal "fr", response.parsed_body["language"]
+
+      get documents_path
+      entry = response.parsed_body.find { |document| document["id"] == response.parsed_body.first["id"] }
+      assert_equal "fr", entry["language"]
+
+      get document_path(entry["id"])
+      assert_equal "fr", response.parsed_body["language"]
+    end
+  end
 end

@@ -3,6 +3,8 @@ class Document < ApplicationRecord
   has_many :images, dependent: :delete_all
   validates :title, :source_path, presence: true
 
+  enum :language, %w[en fr].index_by(&:itself)
+
   METADATA_KEYS = %i[Title Author Subject Keywords Creator Producer CreationDate ModDate].freeze
   private_constant :METADATA_KEYS
 
@@ -45,6 +47,9 @@ class Document < ApplicationRecord
       }
       draft = new(**attributes)
       chunk_rows = Chunk::Extractor.new(draft, path).rows
+      # Language from the just-extracted contents, before create! (I1e);
+      # digest early-return above means unchanged docs keep their language.
+      attributes[:language] = LanguageDetector.detect(chunk_rows.pluck(:content).join(" "))
       extractor = Image::Extractor.new(draft, path)
       image_rows = extractor.rows
       uploaded = upload_blobs(extractor.files)
@@ -72,11 +77,11 @@ class Document < ApplicationRecord
   # a metadata summary (title, author, page_count) alongside the sections.
   def self.toc
     rows = joins(:chunks)
-           .select("documents.id, documents.title, documents.metadata, documents.page_count, chunks.section_path, count(*) AS chunk_count")
-           .group("documents.id", "documents.title", "documents.metadata", "documents.page_count", "chunks.section_path")
+           .select("documents.id, documents.title, documents.metadata, documents.page_count, documents.language, chunks.section_path, count(*) AS chunk_count")
+           .group("documents.id", "documents.title", "documents.metadata", "documents.page_count", "documents.language", "chunks.section_path")
            .order("documents.title, chunks.section_path")
     rows.each_with_object([]) do |row, documents|
-      documents << { id: row.id, document: row.title, metadata: metadata_summary(row), sections: [] } if documents.last&.fetch(:id) != row.id
+      documents << { id: row.id, document: row.title, language: row.language, metadata: metadata_summary(row), sections: [] } if documents.last&.fetch(:id) != row.id
       documents.last[:sections] << { path: row.section_path, chunks: row.chunk_count }
     end
   end
@@ -86,6 +91,7 @@ class Document < ApplicationRecord
     {
       id: id,
       title: title,
+      language: language,
       metadata: metadata,
       page_count: page_count,
       pdf_version: pdf_version,

@@ -24,4 +24,22 @@ class DocumentIngestTest < ActiveSupport::TestCase
       assert_equal({ "Author" => "Jane Doe" }, document.metadata)
     end
   end
+
+  test "ingest! detects french content and stores it as language" do
+    with_pdf([ [ "Intro", "le guide présente les membranes de toiture et la pose est une étape du bâtiment" ] ]) do |path|
+      document = Document.ingest!(path)
+
+      assert_equal "fr", document.language
+      assert document.fr?
+    end
+  end
+
+  test "ingest! detects english content and stores it as language" do
+    with_pdf([ [ "Intro", "the guide covers membrane roofing and this is one of the steps for the crew" ] ]) do |path|
+      document = Document.ingest!(path)
+
+      assert_equal "en", document.language
+      assert document.en?
+    end
+  end
 end

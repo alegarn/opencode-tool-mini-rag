@@ -16,7 +16,7 @@ class ReadSectionTool < MCP::Tool
       document = Document.find_by(id: document_id)
       return missing_response("document #{document_id} not found; call list_toc for valid document ids") unless document
 
-      rows = document.chunks.in_section(section_prefix).order(:page).pluck(:page, :section_path, :content)
+      rows = document.chunks.in_section(section_prefix).in_reading_order.pluck(:page, :section_path, :content)
       if rows.empty?
         return missing_response("no chunks under section prefix #{section_prefix.inspect} in #{document.title}; call list_toc to inspect section paths")
       end
