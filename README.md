@@ -45,7 +45,14 @@ opencode configuration (`opencode.json`):
 
 - Each chunk is indexed under BOTH `english` and `french` tsvector configs, wrapped in `immutable_unaccent` → stemming per language, accent-insensitive both directions (`etancheite` finds `étanchéité` and vice versa).
 - `language` is detected per document (stopword frequency) at ingest, stored, filterable (`?lang=fr`, tool `lang` param), and returned on every search row.
-- There is NO server-side translation. Cross-language semantic bridging is the CLIENT model's job: translate query terms into the corpus languages before calling `search_pdfs` (see the tool description). "Caulking" will not find "calfeutrage" unless the model passes both.
+- There is NO server-side translation. Cross-language semantic bridging is the CLIENT model's job: translate query terms into the corpus languages before calling `search_pdfs` (see the tool description). "Caulking" will not find "calfeutrage" unless the model passes both — as pipe-separated groups in ONE call (`caulking window | calfeutrage fenêtre`), never one search per language.
+- opencode users can enforce the rule ABOVE the tool layer too, as a global agent instruction:
+
+  ```
+  Before calling pdf-rag search_pdfs/find_images: translate the question's key
+  terms into every language present in list_toc output and pass them as one
+  pipe-separated terms string (group per language). Never issue per-language calls.
+  ```
 
 ### Ingesting PDFs
 

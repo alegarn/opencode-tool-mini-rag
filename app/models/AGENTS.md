@@ -21,6 +21,8 @@ Document/Chunk/Image models, retrieval seams, and ingest orchestration. All doma
   - ActiveStorage uploads/purges NEVER inside the DB transaction (rollback cannot undo `File.delete`)
   - UTF-8 scrub on PDF info-dict strings before jsonb serialize
 - Search fallback order: FTS (dual-config en/fr + `immutable_unaccent`) → trigram similarity > 0.3. Filters (`kind`, `languages`) apply INSIDE `search_for`, before the fallback decision.
+- `Image.search_for` honors the pipe-group terms grammar: per-group trigram similarity, OR'd via SQL `greatest` — a sibling (translated) group never dilutes another group's score.
+- UTF-8 scrub on PDF info-dict strings BEFORE any `blank?`/`presence` call — pdf-reader returns byte-invalid UTF-8-tagged strings for broken UTF-16 titles, and `blank?` raises on them.
 
 ## Work Guidance
 

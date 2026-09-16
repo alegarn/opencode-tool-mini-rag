@@ -12,7 +12,8 @@ Streamable-HTTP MCP surface at `/mcp`. One narrow tool per capability (ISP); too
 ## Local Contracts
 
 - Tools call model seams directly (`Chunk.search_for`, `Document.toc`, `Image.search_for`) — no Net::HTTP, no self-REST calls (DIP).
-- Tool `description` strings are LOAD-BEARING: they carry the agent-facing semantic protocol (rephrase, translate, retry instructions). Changing a description changes client behavior.
+- Tool `description` strings are LOAD-BEARING: they carry the agent-facing semantic protocol (rephrase, TRANSLATE-THEN-SEARCH, retry instructions). Changing a description changes client behavior.
+- `terms` grammar is shared across tools and REST: pipe-separated groups, words AND'd within a group, groups OR'd (`a b|c d` = `(a & b) | (c & d)`). Tool-side parsing splits `|` only — a space-split would flatten groups into single-word ORs. One translated group per corpus language rides the same grammar (query-translation sub-feature J).
 - Explicit `tool_name` required (class-derived name would be `search_pdfs_tool`).
 - Tools return `MCP::Tool::Response` text (JSON payload); errors are friendly text responses, never exceptions, never HTTP codes.
 - Schema-level enums validate constrained params (`lang: ['en','fr']`) before the tool body runs.

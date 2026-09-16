@@ -38,7 +38,9 @@ class Document < ApplicationRecord
     begin
       reader = PDF::Reader.new(path)
       attributes = {
-        title: reader.info[:Title].presence&.dup&.force_encoding("UTF-8")&.scrub || File.basename(path, ".pdf"),
+        # Scrub BEFORE presence: broken UTF-16 info strings come back from
+        # pdf-reader tagged UTF-8 but byte-invalid, and blank? raises on them.
+        title: reader.info[:Title]&.dup&.force_encoding("UTF-8")&.scrub&.presence || File.basename(path, ".pdf"),
         source_path: path,
         digest: digest,
         metadata: metadata_from(reader.info),

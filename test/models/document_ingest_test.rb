@@ -17,11 +17,22 @@ class DocumentIngestTest < ActiveSupport::TestCase
   end
 
   test "ingest! falls back to the filename when the Info dict has no title" do
-    with_pdf([ [ "1 Overview", "plain body text" ] ], info: { Author: "Jane Doe" }) do |path|
+    with_pdf([ [ "1 Overview", "plain body text about the guide" ] ], info: { Author: "Jane Doe" }) do |path|
       document = Document.ingest!(path)
 
       assert_equal File.basename(path, ".pdf"), document.title
       assert_equal({ "Author" => "Jane Doe" }, document.metadata)
+    end
+  end
+
+  test "ingest! scrubs invalid UTF-8 Info titles instead of raising on blank?" do
+    broken_title = [ 0xFE, 0xFF, 0x00, 0x47, 0xD8, 0x00, 0x41 ].pack("C*")
+    with_pdf([ [ "Intro", "plain body text about the guide" ] ], info: { Title: broken_title }) do |path|
+      document = Document.ingest!(path)
+
+      assert document.title.valid_encoding?
+      assert document.title.start_with?("G")
+      assert document.metadata["Title"].valid_encoding?
     end
   end
 
