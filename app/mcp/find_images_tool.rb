@@ -1,7 +1,8 @@
 class FindImagesTool < MCP::Tool
   tool_name "find_images"
   description <<~DESCRIPTION
-    Find embedded figures/images by caption or section vocabulary. Returns legend (caption), section, page, dimensions, associated same-page text, and a file URL. Use SHORT keyword terms (2-4 words, not full questions — trigram similarity on captions scores phrases low). Rephrase using figure-naming words (Figure, diagram, chart, screenshot) and likely section names; retry differently when empty.
+    Find embedded figures/images by caption or section vocabulary. Returns legend (caption), section, page, dimensions, associated same-page text, and a file URL. Use SHORT keyword terms (2-4 words per group, not full questions — trigram similarity on captions scores phrases low). Rephrase using figure-naming words (Figure, diagram, chart, screenshot) and likely section names; retry differently when empty.
+    TRANSLATE-THEN-SEARCH: the corpus holds more than one language (check `list_toc` `language` fields; currently en, fr) — translate the keywords into EACH corpus language and pass them in ONE call, e.g. terms "sealing detail junction | détail étanchéité jonction". Do not run one search per language; when a language's figures are missing or weak, rephrase that language's vocabulary and retry.
   DESCRIPTION
   input_schema(
     properties: {

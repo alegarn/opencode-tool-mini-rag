@@ -54,7 +54,7 @@ module PdfHelper
       xobjects = Array(entry[:images]).each_with_index
                                            .map { |image, j| "/#{image[:name]} #{image_object_ids[i][j]} 0 R" }
                                            .join(" ")
-      resources = "<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >>#{' /XObject << ' + xobjects + ' >>' unless xobjects.empty?} >>"
+      resources = "<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >> >>#{' /XObject << ' + xobjects + ' >>' unless xobjects.empty?} >>"
       objects << "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents #{4 + 2 * i} 0 R /Resources #{resources} >>"
       objects << content_object(Array(entry[:lines]))
     end
@@ -74,8 +74,14 @@ module PdfHelper
   end
 
   def content_object(lines)
-    stream = lines.each_with_index.map { |line, j| "BT\n/F1 12 Tf\n72 #{720 - 20 * j} Td\n(#{escape(line)}) Tj\nET" }.join("\n")
+    stream = lines.each_with_index.map { |line, j| "BT\n/F1 12 Tf\n72 #{720 - 20 * j} Td\n(#{escape(win_ansi(line))}) Tj\nET" }.join("\n")
     "<< /Length #{stream.bytesize} >>\nstream\n#{stream}\nendstream"
+  end
+
+  # Standard-14 fonts default to WinAnsiEncoding: write text bytes as
+  # Windows-1252 so pdf-reader decodes accents back to proper UTF-8.
+  def win_ansi(line)
+    line.to_s.encode("Windows-1252")
   end
 
   def image_object(image)

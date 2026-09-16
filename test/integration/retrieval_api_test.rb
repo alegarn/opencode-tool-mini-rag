@@ -112,4 +112,58 @@ class RetrievalApiTest < ActionDispatch::IntegrationTest
 
     assert_response :not_found
   end
+
+  test "GET /chunks rows carry kind and language" do
+    with_pdf([ [ "Intro", "la membrane du toit et les murs du bâtiment pour une longue durée" ] ]) do |path|
+      document = Document.ingest!(path)
+
+      get chunks_path, params: { terms: "membrane" }
+
+      assert_response :ok
+      row = response.parsed_body.find { |chunk| chunk["document_id"] == document.id }
+      assert_equal "pdf", row["kind"]
+      assert_equal "fr", row["language"]
+    end
+  end
+
+  test "GET /chunks finds accented french content with unaccented terms and vice versa" do
+    with_pdf([ [ "Intro", "l'étanchéité à l'air des bâtiments est une exigence essentielle du guide" ] ]) do |path|
+      document = Document.ingest!(path)
+
+      get chunks_path, params: { terms: "etancheite" }
+      assert_response :ok
+      assert_includes response.parsed_body.map { |chunk| chunk["document_id"] }, document.id
+
+      get chunks_path, params: { terms: "étanchéité" }
+      assert_response :ok
+      assert_includes response.parsed_body.map { |chunk| chunk["document_id"] }, document.id
+    end
+  end
+
+  test "GET /chunks with lang narrows to that language only" do
+    with_pdf([ [ "Intro", "la membrane du toit et les murs du bâtiment pour la pose" ] ]) do |french_path|
+      french = Document.ingest!(french_path)
+      with_pdf([ [ "Intro", "the membrane of the roof and the walls for the setup" ] ]) do |english_path|
+        english = Document.ingest!(english_path)
+
+        get chunks_path, params: { terms: "membrane", lang: "fr" }
+
+        assert_response :ok
+        document_ids = response.parsed_body.map { |chunk| chunk["document_id"] }
+        assert_includes document_ids, french.id
+        assert_not_includes document_ids, english.id
+
+        get chunks_path, params: { terms: "membrane", lang: "en" }
+        assert_response :ok
+        assert_includes response.parsed_body.map { |chunk| chunk["document_id"] }, english.id
+      end
+    end
+  end
+
+  test "GET /chunks with invalid lang returns bad_request" do
+    get chunks_path, params: { terms: "membrane", lang: "xx" }
+
+    assert_response :bad_request
+    assert response.parsed_body.key?("error")
+  end
 end
